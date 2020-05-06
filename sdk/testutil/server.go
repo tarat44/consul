@@ -15,7 +15,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -102,7 +101,6 @@ type TestServerConfig struct {
 	Connect             map[string]interface{} `json:"connect,omitempty"`
 	EnableDebug         bool                   `json:"enable_debug,omitempty"`
 	ReadyTimeout        time.Duration          `json:"-"`
-	Stdout, Stderr      io.Writer              `json:"-"`
 	Args                []string               `json:"-"`
 	ReturnPorts         func()                 `json:"-"`
 }
@@ -212,34 +210,11 @@ type TestServer struct {
 	tmpdir string
 }
 
-// Deprecated: Use NewTestServerT instead.
-func NewTestServer() (*TestServer, error) {
-	return NewTestServerConfigT(nil, nil)
-}
-
-// NewTestServerT is an easy helper method to create a new Consul
-// test server with the most basic configuration.
-func NewTestServerT(t *testing.T) (*TestServer, error) {
-	if t == nil {
-		return nil, errors.New("testutil: a non-nil *testing.T is required")
-	}
-	return NewTestServerConfigT(t, nil)
-}
-
-func NewTestServerConfig(cb ServerConfigCallback) (*TestServer, error) {
-	return NewTestServerConfigT(nil, cb)
-}
-
 // NewTestServerConfig creates a new TestServer, and makes a call to an optional
 // callback function to modify the configuration. If there is an error
 // configuring or starting the server, the server will NOT be running when the
 // function returns (thus you do not need to stop it).
 func NewTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, error) {
-	return newTestServerConfigT(t, cb)
-}
-
-// newTestServerConfigT is the internal helper for NewTestServerConfigT.
-func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, error) {
 	path, err := exec.LookPath("consul")
 	if err != nil || path == "" {
 		return nil, fmt.Errorf("consul not found on $PATH - download and install " +
@@ -257,10 +232,6 @@ func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, e
 	}
 
 	cfg := defaultServerConfig()
-	testWriter := TestWriter(t)
-	cfg.Stdout = testWriter
-	cfg.Stderr = testWriter
-
 	cfg.DataDir = filepath.Join(tmpdir, "data")
 	if cb != nil {
 		cb(cfg)
@@ -273,10 +244,7 @@ func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, e
 		return nil, errors.Wrap(err, "failed marshaling json")
 	}
 
-	if t != nil {
-		// if you really want this output ensure to pass a valid t
-		t.Logf("CONFIG JSON: %s", string(b))
-	}
+	t.Logf("CONFIG JSON: %s", string(b))
 	configFile := filepath.Join(tmpdir, "config.json")
 	if err := ioutil.WriteFile(configFile, b, 0644); err != nil {
 		cfg.ReturnPorts()
@@ -284,21 +252,13 @@ func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, e
 		return nil, errors.Wrap(err, "failed writing config content")
 	}
 
-	stdout := testWriter
-	if cfg.Stdout != nil {
-		stdout = cfg.Stdout
-	}
-	stderr := testWriter
-	if cfg.Stderr != nil {
-		stderr = cfg.Stderr
-	}
-
+	buf := NewLogBuffer(t)
 	// Start the server
-	args := []string{"agent", "-config-file", configFile}
+	args := []string{"agent", "-config-file", configFile, "-log-file=./foo.log"}
 	args = append(args, cfg.Args...)
 	cmd := exec.Command("consul", args...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	cmd.Stdout = buf
+	cmd.Stderr = buf
 	if err := cmd.Start(); err != nil {
 		cfg.ReturnPorts()
 		os.RemoveAll(tmpdir)
@@ -332,7 +292,9 @@ func newTestServerConfigT(t testing.TB, cb ServerConfigCallback) (*TestServer, e
 
 	// Wait for the server to be ready
 	if err := server.waitForAPI(); err != nil {
-		server.Stop()
+		if err := server.Stop(); err != nil {
+			t.Logf("server stop failed with: %v", err)
+		}
 		return nil, err
 	}
 
