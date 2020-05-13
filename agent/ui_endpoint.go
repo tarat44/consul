@@ -16,7 +16,9 @@ import (
 const metaExternalSource = "external-source"
 
 type GatewayConfig struct {
-	ListenerPort int
+	Addresses []string `json:",omitempty"`
+	// internal to track uniqueness
+	addressesSet map[string]struct{}
 }
 
 // ServiceSummary is used to summarize a service
@@ -221,7 +223,19 @@ func summarizeServices(dump structs.ServiceDump) []*ServiceSummary {
 	for _, csn := range dump {
 		if csn.GatewayService != nil {
 			sum := getService(csn.GatewayService.Service)
-			sum.GatewayConfig.ListenerPort = csn.GatewayService.Port
+			for _, addr := range csn.GatewayService.Addresses() {
+				// check for duplicates, a service will have a ServiceInfo struct for
+				// every instance that is registered.
+				if _, ok := sum.GatewayConfig.addressesSet[addr]; !ok {
+					if sum.GatewayConfig.addressesSet == nil {
+						sum.GatewayConfig.addressesSet = make(map[string]struct{})
+					}
+					sum.GatewayConfig.addressesSet[addr] = struct{}{}
+					sum.GatewayConfig.Addresses = append(
+						sum.GatewayConfig.Addresses, addr,
+					)
+				}
+			}
 		}
 
 		// Will happen in cases where we only have the GatewayServices mapping
