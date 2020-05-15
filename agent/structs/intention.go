@@ -103,54 +103,53 @@ func (t *Intention) UnmarshalJSON(data []byte) (err error) {
 	return nil
 }
 
-func (x *Intention) SetHash(force bool) []byte {
-	if force || x.Hash == nil {
-		hash, err := blake2b.New256(nil)
-		if err != nil {
-			panic(err)
-		}
-
-		// Any non-immutable "content" fields should be involved with the
-		// overall hash. The IDs are immutable which is why they aren't here.
-		// The raft indices are metadata similar to the hash which is why they
-		// aren't incorporated. CreateTime is similarly immutable
-		//
-		// The Hash is really only used for replication to determine if a token
-		// has changed and should be updated locally.
-
-		// Write all the user set fields
-		hash.Write([]byte(x.ID))
-		hash.Write([]byte(x.Description))
-		hash.Write([]byte(x.SourceNS))
-		hash.Write([]byte(x.SourceName))
-		hash.Write([]byte(x.DestinationNS))
-		hash.Write([]byte(x.DestinationName))
-		hash.Write([]byte(x.SourceType))
-		hash.Write([]byte(x.Action))
-		hash.Write([]byte(x.DefaultAddr))
-		binary.Write(hash, binary.LittleEndian, x.DefaultPort)
-		binary.Write(hash, binary.LittleEndian, x.Precedence)
-
-		// hashing the metadata
-		var keys []string
-		for k := range x.Meta {
-			keys = append(keys, k)
-		}
-
-		// keep them sorted to ensure hash stability
-		sort.Strings(keys)
-
-		for _, k := range keys {
-			hash.Write([]byte(k))
-			hash.Write([]byte(x.Meta[k]))
-		}
-
-		// Finalize the hash
-		hashVal := hash.Sum(nil)
-
-		x.Hash = hashVal
+// SetHash calculates Intention.Hash from any mutable "content" fields.
+//
+// The Hash is primarily used for replication to determine if a token
+// has changed and should be updated locally.
+//
+// TODO: move to agent/consul where it is called
+func (x *Intention) SetHash() {
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
 	}
-	return x.Hash
+
+	// Write all the user set fields
+	hash.Write([]byte(x.ID))
+	hash.Write([]byte(x.Description))
+	hash.Write([]byte(x.SourceNS))
+	hash.Write([]byte(x.SourceName))
+	hash.Write([]byte(x.DestinationNS))
+	hash.Write([]byte(x.DestinationName))
+	hash.Write([]byte(x.SourceType))
+	hash.Write([]byte(x.Action))
+	hash.Write([]byte(x.DefaultAddr))
+	// hash.Write can not return an error, so the only way for binary.Write to
+	// error is to pass it data with an invalid data type. Doing so would be a
+	// programming error, so panic in that case.
+	if err := binary.Write(hash, binary.LittleEndian, uint64(x.DefaultPort)); err != nil {
+		panic(err)
+	}
+	if err := binary.Write(hash, binary.LittleEndian, uint64(x.Precedence)); err != nil {
+		panic(err)
+	}
+
+	// hashing the metadata
+	var keys []string
+	for k := range x.Meta {
+		keys = append(keys, k)
+	}
+
+	// store the keys to ensure hash stability
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		hash.Write([]byte(k))
+		hash.Write([]byte(x.Meta[k]))
+	}
+
+	x.Hash = hash.Sum(nil)
 }
 
 // Validate returns an error if the intention is invalid for inserting
