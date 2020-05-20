@@ -135,13 +135,11 @@ func (x *Intention) SetHash() {
 		panic(err)
 	}
 
-	// hashing the metadata
+	// sort keys to ensure hash stability when meta is stored later
 	var keys []string
 	for k := range x.Meta {
 		keys = append(keys, k)
 	}
-
-	// store the keys to ensure hash stability
 	sort.Strings(keys)
 
 	for _, k := range keys {
