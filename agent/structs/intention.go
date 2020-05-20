@@ -55,11 +55,6 @@ type Intention struct {
 	// Action is whether this is a whitelist or blacklist intention.
 	Action IntentionAction
 
-	// DefaultAddr, DefaultPort of the local listening proxy (if any) to
-	// make this connection.
-	DefaultAddr string
-	DefaultPort int
-
 	// Meta is arbitrary metadata associated with the intention. This is
 	// opaque to Consul but is served in API responses.
 	Meta map[string]string
@@ -124,13 +119,9 @@ func (x *Intention) SetHash() {
 	hash.Write([]byte(x.DestinationName))
 	hash.Write([]byte(x.SourceType))
 	hash.Write([]byte(x.Action))
-	hash.Write([]byte(x.DefaultAddr))
 	// hash.Write can not return an error, so the only way for binary.Write to
 	// error is to pass it data with an invalid data type. Doing so would be a
 	// programming error, so panic in that case.
-	if err := binary.Write(hash, binary.LittleEndian, uint64(x.DefaultPort)); err != nil {
-		panic(err)
-	}
 	if err := binary.Write(hash, binary.LittleEndian, uint64(x.Precedence)); err != nil {
 		panic(err)
 	}
@@ -333,9 +324,9 @@ func (x *Intention) String() string {
 
 // EstimateSize returns an estimate (in bytes) of the size of this structure when encoded.
 func (x *Intention) EstimateSize() int {
-	// 60 = 36 (uuid) + 16 (RaftIndex) + 4 (Precedence) + 4 (DefaultPort)
-	size := 60 + len(x.Description) + len(x.SourceNS) + len(x.SourceName) + len(x.DestinationNS) +
-		len(x.DestinationName) + len(x.SourceType) + len(x.Action) + len(x.DefaultAddr)
+	// 56 = 36 (uuid) + 16 (RaftIndex) + 4 (Precedence)
+	size := 56 + len(x.Description) + len(x.SourceNS) + len(x.SourceName) + len(x.DestinationNS) +
+		len(x.DestinationName) + len(x.SourceType) + len(x.Action)
 
 	for k, v := range x.Meta {
 		size += len(k) + len(v)

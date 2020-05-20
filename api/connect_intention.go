@@ -36,11 +36,6 @@ type Intention struct {
 	// Action is whether this is a whitelist or blacklist intention.
 	Action IntentionAction
 
-	// DefaultAddr, DefaultPort of the local listening proxy (if any) to
-	// make this connection.
-	DefaultAddr string
-	DefaultPort int
-
 	// Meta is arbitrary metadata associated with the intention. This is
 	// opaque to Consul but is served in API responses.
 	Meta map[string]string
