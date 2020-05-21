@@ -55,6 +55,13 @@ type Intention struct {
 	// Action is whether this is a whitelist or blacklist intention.
 	Action IntentionAction
 
+	// DefaultAddr is not used.
+	// Deprecated: DefaultAddr is not used and may be removed in a future version.
+	DefaultAddr string `bexpr:"-"`
+	// DefaultPort is not used.
+	// Deprecated: DefaultPort is not used and may be removed in a future version.
+	DefaultPort int `bexpr:"-"`
+
 	// Meta is arbitrary metadata associated with the intention. This is
 	// opaque to Consul but is served in API responses.
 	Meta map[string]string
