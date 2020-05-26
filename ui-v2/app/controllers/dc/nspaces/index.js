@@ -1,9 +1,8 @@
 import Controller from '@ember/controller';
 import { get, computed } from '@ember/object';
 
-import WithEventSource from 'consul-ui/mixins/with-event-source';
 import WithSearching from 'consul-ui/mixins/with-searching';
-export default Controller.extend(WithEventSource, WithSearching, {
+export default Controller.extend(WithSearching, {
   queryParams: {
     s: {
       as: 'filter',
