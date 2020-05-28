@@ -26,6 +26,14 @@ service_prefix "" {
 node_prefix "" {
 	policy = "read"
 }`
+
+	aclPolicyTemplateNodeIdentity = `
+node "%[1]s" {
+	policy = "write"
+}
+service_prefix "" {
+	policy = "read"
+}`
 )
 
 type ACLAuthMethodEnterpriseFields struct{}
@@ -50,4 +58,28 @@ func (p *ACLPolicy) EnterprisePolicyMeta() *acl.EnterprisePolicyMeta {
 
 func (m *ACLAuthMethod) TargetEnterpriseMeta(_ *EnterpriseMeta) *EnterpriseMeta {
 	return &m.EnterpriseMeta
+}
+
+func (t *ACLToken) NodeIdentityList() []*ACLNodeIdentity {
+	if len(t.NodeIdentities) == 0 {
+		return nil
+	}
+
+	out := make([]*ACLNodeIdentity, 0, len(t.NodeIdentities))
+	for _, n := range t.NodeIdentities {
+		out = append(out, n.Clone())
+	}
+	return out
+}
+
+func (r *ACLRole) NodeIdentityList() []*ACLNodeIdentity {
+	if len(r.NodeIdentities) == 0 {
+		return nil
+	}
+
+	out := make([]*ACLNodeIdentity, 0, len(r.NodeIdentities))
+	for _, n := range r.NodeIdentities {
+		out = append(out, n.Clone())
+	}
+	return out
 }
