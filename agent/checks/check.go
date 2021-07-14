@@ -534,17 +534,20 @@ func shutdownHTTP2ClientConn(clientConn *http2.ClientConn, timeout time.Duration
 }
 
 func (c *CheckH2PING) check() {
-        t := &http2.Transport{}
-        //if c.TLSClientConfig != nil {
-                t.TLSClientConfig = c.TLSClientConfig
-        //} else {
-        //        t.DialTLS = func(network, addr string, cfg *tls.Config) (net.Conn, error) {
-        //                return net.Dial(network, addr)
-        //        }
-        //        t.AllowHTTP = true
-        //}
-        target := c.H2PING
-        conn, err := t.DialTLS("tcp", target, c.TLSClientConfig)
+	t := &http2.Transport{}
+	if c.TLSClientConfig != nil {
+		t.TLSClientConfig = c.TLSClientConfig
+		t.DialTLS = func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+			return tls.Dial(network, addr, c.TLSClientConfig)
+		}
+	} else {
+		t.DialTLS = func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+			return net.Dial(network, addr)
+		}
+		t.AllowHTTP = true
+	}
+	target := c.H2PING
+	conn, err := t.DialTLS("tcp", target, c.TLSClientConfig)
 	if err != nil {
 		message := fmt.Sprintf("Failed to dial to %s: %s", target, err)
 		c.StatusHandler.updateCheck(c.CheckID, api.HealthCritical, message)

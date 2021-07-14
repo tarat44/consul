@@ -425,6 +425,7 @@ type CheckDefinition struct {
 	Timeout                        *string             `mapstructure:"timeout"`
 	TTL                            *string             `mapstructure:"ttl"`
 	H2PING                         *string             `mapstructure:"h2ping"`
+        H2PINGDisableTLS               *bool               `mapstructure:"h2ping_disable_tls"`
 	SuccessBeforePassing           *int                `mapstructure:"success_before_passing"`
 	FailuresBeforeCritical         *int                `mapstructure:"failures_before_critical"`
 	DeregisterCriticalServiceAfter *string             `mapstructure:"deregister_critical_service_after" alias:"deregistercriticalserviceafter"`
