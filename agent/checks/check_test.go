@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/go-uuid"
 	"github.com/stretchr/testify/require"
 	http2 "golang.org/x/net/http2"
+        "golang.org/x/net/http2/h2c"
 )
 
 func uniqueID() string {
@@ -1119,6 +1120,39 @@ func TestCheckH2PINGInvalidListener(t *testing.T) {
 		}
 
 	})
+}
+
+func TestCheckH2CPING(t *testing.T) {
+        handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { return })
+        h2chandler := h2c.NewHandler(handler, &http2.Server{})
+        server := httptest.NewUnstartedServer(h2chandler)
+        server.Start()
+        defer server.Close()
+        serverAddress := server.Listener.Addr()
+        target := serverAddress.String()
+
+        notif := mock.NewNotify()
+        logger := testutil.Logger(t)
+        statusHandler := NewStatusHandler(notif, logger, 0, 0)
+        cid := structs.NewCheckID("foo", nil)
+        check := &CheckH2PING{
+                CheckID:         cid,
+                H2PING:          target,
+                Interval:        5 * time.Second,
+                Timeout:         2 * time.Second,
+                Logger:          logger,
+                TLSClientConfig: nil,
+                StatusHandler:   statusHandler,
+        }
+
+        check.Start()
+        defer check.Stop()
+
+        retry.Run(t, func(r *retry.R) {
+                if got, want := notif.State(cid), api.HealthPassing; got != want {
+                        r.Fatalf("got state %q want %q", got, want)
+                }
+        })
 }
 
 func TestCheck_Docker(t *testing.T) {

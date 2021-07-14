@@ -33,6 +33,7 @@ type CheckType struct {
 	ScriptArgs             []string
 	HTTP                   string
 	H2PING                 string
+        H2PINGDisableTLS       bool
 	Header                 map[string][]string
 	Method                 string
 	Body                   string
